@@ -104,8 +104,6 @@ if [[ -n $standalone_no_systemd ]]; then
     cmake_flags="$cmake_flags -DINPUTACTIONS_SYSTEMD=OFF"
 fi
 
-cmakelists="cmake_minimum_required(VERSION 3.16.0)\nproject(inputactions_installer)"
-
 function ensure_repository() {
     repo_name="$1"
     repo_branch="$2"
@@ -116,6 +114,7 @@ function ensure_repository() {
     fi
     if [[ -n "$repo_branch" ]]; then
         git -C "$repo_dir" fetch
+        git -C "$repo_dir" reset --hard origin/"$repo_branch"
         git -C "$repo_dir" checkout "$repo_branch"
         git -C "$repo_dir" submodule update --init --recursive
     elif [[ -n $latest ]]; then
@@ -139,6 +138,10 @@ if [[ -n $build_kwin ]]; then
 elif [[ -n $build_standalone ]]; then
     echo -e "add_subdirectory(standalone)" >> $cmakelists_file
     ensure_repository "standalone" "$standalone_branch"
+
+    if ! getent group inputactions > /dev/null; then
+        sudo groupadd -r inputactions
+    fi
 fi
 
 if [[ ! -n $build_ctl && ! -n $build_kwin && ! -n $build_standalone ]]; then
@@ -166,4 +169,9 @@ if [[ -n "$cpack_generator" ]]; then
     fi
 else
     sudo make -C "$build_dir" install
+    if [[ -n $build_standalone ]]; then
+        client_path="/usr/bin/inputactions-client"
+        sudo chown "$USER:inputactions" "$client_path"
+        sudo chmod g+s "$client_path"
+    fi
 fi
