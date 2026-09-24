@@ -23,6 +23,15 @@ while [[ $# -gt 0 ]]; do
             shift
             shift
             ;;
+        --overlay)
+            build_overlay=1
+            shift
+            ;;
+        --overlay-branch)
+            overlay_branch=$2
+            shift
+            shift
+            ;;
         --standalone)
             build_standalone=1
             shift
@@ -66,6 +75,8 @@ Options:
   --ctl-branch <branch>         Build a custom Git branch of the control tool (checks out the specified branch)
   --kwin                        Build the KWin implementation (mutually exclusive with --standalone)
   --kwin-branch <branch>        Build a custom Git branch of the KWin implementation (checks out the specified branch)
+  --overlay                     Build the overlay
+  --overlay-branch <branch>     Build a custom Git branch of the overlay (checks out the specified branch)
   --standalone                  Build the standalone implementation (mutually exclusive with --kwin)
   --standalone-branch <branch>  Build a custom Git branch of the standalone implementation (checks out the specified branch)
   --standalone-no-systemd       Disable systemd support
@@ -87,6 +98,7 @@ done
 
 build_dir="$installer_dir/build"
 kwin_dir="$installer_dir/kwin"
+overlay_dir="$installer_dir/overlay"
 standalone_dir="$installer_dir/standalone"
 
 mkdir -p $installer_dir
@@ -132,6 +144,10 @@ if [[ -n $build_ctl ]]; then
     echo -e "add_subdirectory(ctl)" >> $cmakelists_file
     ensure_repository "ctl" "$ctl_branch"
 fi
+if [[ -n $build_overlay ]]; then
+    echo -e "add_subdirectory(overlay)" >> $cmakelists_file
+    ensure_repository "overlay" "$overlay_branch"
+fi
 if [[ -n $build_kwin ]]; then
     echo -e "add_subdirectory(kwin)" >> $cmakelists_file
     ensure_repository "kwin" "$kwin_branch"
@@ -144,7 +160,7 @@ elif [[ -n $build_standalone ]]; then
     fi
 fi
 
-if [[ ! -n $build_ctl && ! -n $build_kwin && ! -n $build_standalone ]]; then
+if [[ ! -n $build_ctl && ! -n $build_overlay && ! -n $build_kwin && ! -n $build_standalone ]]; then
     echo "No build target specified."
     exit 1
 fi
@@ -161,6 +177,9 @@ make -C "$build_dir" -j$(nproc)
 if [[ -n "$cpack_generator" ]]; then
     if [[ -n $build_ctl ]]; then
         cpack -B "$installer_dir" -G "$cpack_generator" --config "$build_dir/ctl/CPack.cmake"
+    fi
+    if [[ -n $build_overlay ]]; then
+        cpack -B "$installer_dir" -G "$cpack_generator" --config "$build_dir/overlay/CPack.cmake"
     fi
     if [[ -n $build_kwin ]]; then
         cpack -B "$installer_dir" -G "$cpack_generator" --config "$build_dir/kwin/CPack.cmake"
